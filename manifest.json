@@ -1,10 +1,21 @@
 {
-    "name": "Job helper",
-    "description": "Base Level Extension",
-    "version": "1.0",
-    "manifest_version": 3,
-    "action": {
-      "default_popup": "hello.html",
-      "default_icon": "hello_extensions.png"
+  "manifest_version": 3,
+  "name": "Finn.no Checker",
+  "version": "1.0",
+  "description": "Logs whether the user is on finn.no",
+  "permissions": ["tabs", "scripting", "notifications"],
+  "host_permissions": [
+    "https://www.finn.no/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "check-finn": {
+      "suggested_key": {
+        "default": "Alt+Q"
+      },
+      "description": "Check if you are on finn.no"
     }
   }
+}
