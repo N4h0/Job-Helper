@@ -73,7 +73,7 @@ export function runFinnScraper() {
   // Nøkkelord
   let nøkkelord = '';
   const allHeadings = document.querySelectorAll('h2');
-  
+
   for (const h2 of allHeadings) {
     if (h2.textContent.trim() === 'Nøkkelord') {
       const p = h2.nextElementSibling;
@@ -87,26 +87,45 @@ export function runFinnScraper() {
   // Get the current page URL
   const url = window.location.href;
 
+  // Stillingsbeskrivelse
+  let jobDescription = '';
+  const jobSection = document.querySelector('section > h1.t3')?.parentElement;
+  if (jobSection) {
+    jobDescription = jobSection.innerText.trim();
+  }
+
+  // Beskrivelse av firma
+  let companyDescription = '';
+  const companySection = document.querySelector('section.my-16');
+  if (companySection) {
+    const intro = companySection.querySelector('div.import-decoration em');
+    const cleanedIntro = intro ? intro.textContent.trim() : '';
+
+    companyDescription = cleanedIntro;
+  }
+
   // ✅ Build final job object
   const job = {
-    stillingstittel: stillingstittel,
-    firma: firma,
-    stillingOpprettet: stillingOpprettet,
-    frist: frist,
+    stillingstittel: stillingstittel,// Here there's also going to be a hyperlink to my application letter
+    firma: firma, // Hyperlink to the job url
+    stillingOpprettet: stillingOpprettet, // Here there's also going to be a hyperlink to my CV. If not found, the date is NotFound (string).
+    frist: frist, // Hyperlink to the downloaded job ad
     pros: '',
     cons: '',
     notat: '',
-    sendt: '',
-    lagtInn: lagtInn,
+    sendt: '', // DateTime format of the time I sent the application
+    lagtInn: lagtInn, // DateTime format of the time I added the application to my google docs
     sektor: sektor,
     sted: sted,
     bransje: bransje,
     stillingsfunksjon: stillingsfunksjon,
     arbeidsspråk: arbeidsspråk,
     nøkkelord: nøkkelord,
-    datoAvslag: '',
+    datoAvslag: '', // DateTime format of the time I got a rejection
     stegVidere: '',
-    url: url  // Add the URL to the job object
+    url: url,  // Add the URL to the job object
+    jobDescription,        // ✅ NEW
+    companyDescription   
   };
 
   console.log('✅ Scraped Job (plain object):', job);

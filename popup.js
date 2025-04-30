@@ -1,7 +1,6 @@
 import { scraperMap } from './scraperMap.js'; // auto-generated map
 
 document.addEventListener('DOMContentLoaded', () => {
-  const button = document.getElementById('checkButton');
   const result = document.getElementById('result');
 
   // ✅ Listen for scraped job result
@@ -9,12 +8,82 @@ document.addEventListener('DOMContentLoaded', () => {
     if (message.type === "jobScraped") {
       const job = message.payload;
 
-      // Clear previous output
-      result.innerHTML = `<h3>✅ New Job scraped – edit before sending:</h3><div id="jobForm"></div>`;
-      const formContainer = document.getElementById('jobForm');
+      // Add default LLM settings
+      job.llmSettings = {
+        språk: 'Norwegian nynorsk',
+        tone: 'profesjonell',
+        model: 'gpt-4',
+        includeProsCons: true
+      };
 
-      // ✅ Create form fields
+      // Clear previous output and add tabs
+      result.innerHTML = `
+        <h3>✅ New Job scraped – edit before sending:</h3>
+        <div id="tabContainer">
+          <div id="tabButtons" style="margin-bottom: 12px;">
+            <button id="tabLLM" class="active-tab">🤖 LLM Settings</button>
+            <button id="tabJob">📋 Job Info</button>
+          </div>
+          <div id="tabContent">
+            <div id="llmSettingsTab"></div>
+            <div id="jobForm" style="display:none;"></div>
+          </div>
+        </div>
+      `;
+
+      const tabLLM = document.getElementById('tabLLM');
+      const tabJob = document.getElementById('tabJob');
+      const jobForm = document.getElementById('jobForm');
+      const llmSettingsTab = document.getElementById('llmSettingsTab');
+
+      tabLLM.addEventListener('click', () => {
+        tabLLM.classList.add('active-tab');
+        tabJob.classList.remove('active-tab');
+        llmSettingsTab.style.display = 'block';
+        jobForm.style.display = 'none';
+      });
+
+      tabJob.addEventListener('click', () => {
+        tabJob.classList.add('active-tab');
+        tabLLM.classList.remove('active-tab');
+        jobForm.style.display = 'block';
+        llmSettingsTab.style.display = 'none';
+      });
+
+      // ✅ Render LLM Settings Tab
+      llmSettingsTab.innerHTML = `
+        <label>- språk:</label><br>
+        <select id="llmLang" style="width:100%;margin-bottom:10px;">
+          <option value="Norwegian nynorsk">nynorsk</option>
+          <option value="Norwegian bokmål">bokmål</option>
+          <option value="English">engelsk</option>
+        </select><br>
+
+        <label>- tone:</label><br>
+        <select id="llmTone" style="width:100%;margin-bottom:10px;">
+          <option value="profesjonell">profesjonell</option>
+          <option value="formell">formell</option>
+          <option value="vennlig">vennlig</option>
+        </select><br>
+
+        <label>- Modell:</label><br>
+        <select id="llmModel" style="width:100%;margin-bottom:10px;">
+          <option value="gpt-4">gpt-4</option>
+          <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+        </select><br>
+
+        <label><input type="checkbox" id="includeProsCons" checked> Ta med pros/cons i prompt</label>
+      `;
+
+      document.getElementById('llmLang').addEventListener('change', e => job.llmSettings.språk = e.target.value);
+      document.getElementById('llmTone').addEventListener('change', e => job.llmSettings.tone = e.target.value);
+      document.getElementById('llmModel').addEventListener('change', e => job.llmSettings.model = e.target.value);
+      document.getElementById('includeProsCons').addEventListener('change', e => job.llmSettings.includeProsCons = e.target.checked);
+
+      // ✅ Create Job Info Fields
       Object.entries(job).forEach(([key, value]) => {
+        if (key === 'språk' || key === 'llmSettings') return; // Already handled
+
         const isMultiline = ['pros', 'cons', 'notat', 'stegVidere'].includes(key);
 
         const fieldContainer = document.createElement('div');
@@ -38,33 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fieldContainer.appendChild(label);
         fieldContainer.appendChild(input);
-        formContainer.appendChild(fieldContainer);
+        jobForm.appendChild(fieldContainer);
       });
 
-      // ✅ Add the submit button once
-      const submitBtn = document.createElement('button');
-      submitBtn.textContent = '📤 Send to Google Sheets';
-      submitBtn.style.marginTop = '12px';
-
-      submitBtn.addEventListener('click', () => {
-        fetch('http://localhost:3000/submit-job', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(job)
-        })
-          .then(res => res.json())
-          .then(data => {
-            alert(data.status || '✅ Sent!');
-          })
-          .catch(err => {
-            console.error(err);
-            alert('❌ Failed to send job to Google Sheets.');
-          });
-      });
-
-      result.appendChild(submitBtn);
-
-      // ✅ Download the full HTML of the page
+      // ✅ Capture full HTML of the tab and attach it to job.htmlContent
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentTabId = tabs[0].id;
 
@@ -73,59 +119,56 @@ document.addEventListener('DOMContentLoaded', () => {
           func: () => document.documentElement.outerHTML
         }, (injectionResults) => {
           const html = injectionResults[0].result;
-          const blob = new Blob([html], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
+          job.htmlContent = html;
 
-          // Get the current month (01, 02, ..., 12)
-          const currentMonth = new Date().toLocaleString('default', { month: '2-digit' });
+          const submitBtn = document.createElement('button');
+          submitBtn.textContent = '📤 Send to Google Sheets';
+          submitBtn.style.marginTop = '12px';
 
-          // Get the current year (e.g., 2025)
-          const currentYear = new Date().getFullYear();
+          submitBtn.addEventListener('click', () => {
+            fetch('http://localhost:3000/submit-job', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(job)
+            })
+              .then(res => res.json())
+              .then(data => {
+                alert(data.status || '✅ Sent!');
+              })
+              .catch(err => {
+                console.error(err);
+                alert('❌ Failed to send job to Google Sheets.');
+              });
+          });
 
-          // Sanitize job title and company name for safe filename
-          const safeTitle = (job.stillingstittel || 'job').replace(/[\/\\:*?"<>|]/g, '-');
-          const safeFirma = (job.firma || 'company').replace(/[\/\\:*?"<>|]/g, '-');
-
-          // Append current year and month to filename
-          const filename = `${safeFirma}_${safeTitle}_${currentMonth}_${currentYear}.html`;
-
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          result.appendChild(submitBtn);
         });
       });
     }
   });
 
-  // ✅ Only run scraper on button click
-  button.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      const currentTab = tabs[0];
+  // ✅ Automatically run scraper on popup open
+  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+    const currentTab = tabs[0];
 
-      if (currentTab && currentTab.url) {
-        const url = new URL(currentTab.url);
-        const hostname = url.hostname.replace('www.', '');
+    if (currentTab && currentTab.url) {
+      const url = new URL(currentTab.url);
+      const hostname = url.hostname.replace('www.', '');
 
-        const scraper = scraperMap[hostname];
+      const scraper = scraperMap[hostname];
 
-        if (scraper) {
-          result.textContent = `✅ Recognized ${hostname}, running scraper...`;
+      if (scraper) {
+        result.textContent = `✅ Recognized ${hostname}, running scraper...`;
 
-          chrome.scripting.executeScript({
-            target: { tabId: currentTab.id },
-            func: scraper
-          });
-        } else {
-          result.textContent = `❌ No scraper available for ${hostname}.`;
-        }
+        chrome.scripting.executeScript({
+          target: { tabId: currentTab.id },
+          func: scraper
+        });
       } else {
-        result.textContent = "❓ Couldn't detect current tab.";
+        result.textContent = `❌ No scraper available for ${hostname}.`;
       }
-    });
+    } else {
+      result.textContent = "❓ Couldn't detect current tab.";
+    }
   });
 });
