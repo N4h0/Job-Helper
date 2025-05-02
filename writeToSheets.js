@@ -3,6 +3,8 @@ import bodyParser from 'body-parser';
 import cors from 'cors';  // Import cors
 import { google } from 'googleapis';
 import { generateCoverLetter } from './utils/generateCoverLetter.js';
+import { generateCV } from './utils/generateCV.js';
+import fs from 'fs';
 
 const app = express();
 const port = 3000;
@@ -32,6 +34,9 @@ app.post('/submit-job', async (req, res) => {
     try {
         const job = req.body;
 
+        console.log('______________________________________________________________________');
+        console.log('Writing new job to Googlle Sheets: ', job.stillingstittel, " at firm:", job.firma);
+
         if (!job || Object.keys(job).length === 0) {
             console.error('❌ Job data is empty');
             return res.status(400).json({ error: '❌ Empty job data' });
@@ -40,8 +45,6 @@ app.post('/submit-job', async (req, res) => {
         const client = await auth.getClient();
         const sheets = google.sheets({ version: 'v4', auth: client });
         const drive = google.drive({ version: 'v3', auth: client });
-
-        console.log('Job data appended to jobarray');
 
         // Step 1: Check if job already exists in any of the sheets
         for (const sheetName of sheetsToCheck) {
@@ -122,6 +125,17 @@ app.post('/submit-job', async (req, res) => {
         const htmlFileUrl = rawLink.split('?')[0]; // Removes ?usp=drivesdk or any other query params
         const htmlLinkAndFrist = `=HYPERLINK("${htmlFileUrl}", ${JSON.stringify(frist)})`;
 
+        job.generatedDocId = documentId; // Add the document ID to the job object
+
+        //Remove the html object from job
+        const jobNoHtml = { ...job };
+        delete jobNoHtml.htmlContent;
+
+        fs.writeFileSync('./debug-latest-job.json', JSON.stringify(jobNoHtml, null, 2));
+
+        //Save the job with html in a jobs folder for prompt engineering later. The file name should be firm + job title + date 
+        fs.writeFileSync(`./jobs/${job.firma.replace(/[\/\\:*?"<>|]/g, '_').replace(/\s+/g, '_')}_${job.stillingstittel.replace(/[\/\\:*?"<>|]/g, '_')}_${formattedDate}.json`, JSON.stringify(job, null, 2), 'utf-8');
+
         // Step 2: If no match found, proceed to insert job data
         const getRowsResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -134,8 +148,6 @@ app.post('/submit-job', async (req, res) => {
         if (rows && rows.length > 0) {
             firstEmptyRow = rows.length + 2; // Set row to the first empty row after the header
         }
-
-        console.log('First empty row:', firstEmptyRow);
 
         const jobArray = [
             [
@@ -247,10 +259,31 @@ app.post('/submit-job', async (req, res) => {
         });
 
         res.status(200).json({ status: '✅ Job added to Google Sheets!' });
-        await generateCoverLetter(job, documentId);
+        if (job.booleanGenerateCoverLetter === true) {
+            await generateCoverLetter();
+        } else {
+            console.log('❌ No cover letter generation requested.');
+        }
+        if (job.booleanCV === true) {
+            const fileId = await generateCV();
+            job.cvFileId = fileId;
+        
+            const cvLink = `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view", "${job.stillingOpprettet}")`;
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `Planlagt/usikker!D${firstEmptyRow}`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                    values: [[cvLink]]
+                }
+            });
+            console.log(`📎 CV link added to cell D${firstEmptyRow}`);
+        } else {
+            console.log('❌ No CV generation requested.');
+        }
 
     } catch (err) {
-        console.error('❌ Error writing to Sheets:', err);
+        console.error('❌ writeToSheets.js: Error writing to Sheets:', err);
         console.error('Detailed error:', err.response || err);  // Log detailed error
         res.status(500).json({ error: '❌ Failed to write job to Sheets', details: err.message });
     }

@@ -1,0 +1,146 @@
+%%%%%%%%%%%%%%%
+% This CV example/template is based on my own
+% CV which I (lamely attempted) to clean up, so that
+% it's less of an eyesore and easier for others to use.
+%
+% LianTze Lim (liantze@gmail.com)
+% 23 Oct, 2022
+
+\documentclass[a4paper,skipsamekey,11pt,english]{curve}
+
+% Uncomment to enable Chinese; needs XeLaTeX
+% \usepackage{ctex}
+
+% Default biblatex style used for the publication list is APA6. If you wish to use a different style or pass other options to biblatex you can change them here. 
+\PassOptionsToPackage{style=ieee,sorting=ydnt,uniquename=init,defernumbers=true}{biblatex}
+
+% Most commands and style definitions are in settings.sty.
+\usepackage{settings}
+
+% If you need to further customise your biblatex setup e.g. with \DeclareFieldFormat etc please add them here AFTER loading settings.sty. For example, to remove the default "[Online] Available:" prefix before URLs when using the IEEE style:
+\DefineBibliographyStrings{english}{url={\textsc{url}}}
+
+%% Only needed if you want a Publication List
+\addbibresource{own-bib.bib}
+
+%% Specify your last name(s) and first name(s) (as given in the .bib) to automatically bold your own name in the publications list. 
+%% One caveat: You need to write \bibnamedelima where there's a space in your name for this to work properly; or write \bibnamedelimi if you use initials in the .bib
+% \mynames{Lim/Lian\bibnamedelima Tze}
+
+%% You can specify multiple names like this, especially if you have changed your name or if you need to highlight multiple authors. See items 6–9 in the example "Journal Articles" output.
+\mynames{Lim/Lian\bibnamedelima Tze,
+  Wong/Lian\bibnamedelima Tze,
+  Lim/Tracy,
+  Lim/L.\bibnamedelimi T.}
+%% MAKE SURE THERE IS NO SPACE AFTER THE FINAL NAME IN YOUR \mynames LIST
+
+
+% Change the fonts if you want
+\ifxetexorluatex % If you're using XeLaTeX or LuaLaTeX
+  \usepackage{fontspec} 
+  %% You can use \setmainfont etc; I'm just using these font packages here because they provide OpenType fonts for use by XeLaTeX/LuaLaTeX anyway
+  \usepackage[p,osf,swashQ]{cochineal}
+  \usepackage[medium,bold]{cabin}
+  \usepackage[varqu,varl,scale=0.9]{zi4}
+  \usepackage{tabularx}
+\else % If you're using pdfLaTeX or latex
+  \usepackage[T1]{fontenc}
+  \usepackage[p,osf,swashQ]{cochineal}
+  \usepackage{cabin}
+  \usepackage[varqu,varl,scale=0.9]{zi4}
+  \usepackage[most]{tcolorbox}
+  \usepackage{xcolor}
+  \usepackage{tabularx}
+\fi
+
+\newlength{\entrylabelwidthcustom}
+\setlength{\entrylabelwidthcustom}{3.8cm} % Tweak this if needed
+
+
+
+
+\definecolor{darkerGreen}{HTML}{E6F2DA}
+\definecolor{lighterGreen}{HTML}{B3CC80} % A much lighter shade of green
+
+% Define the greenbox tcolorbox environment
+\newtcolorbox{greenbox}{
+  colback=lighterGreen!30, % Much less bright green
+  colframe=darkerGreen, % Darker green for the frame
+  boxrule=0.5mm,
+  boxsep=5mm,
+  arc=0mm, % Makes corners square
+  left=10mm, % Extra space on the left side for text
+  right=10mm, % Balance the space on the right side
+  top=0mm, % Top padding
+  bottom=0mm, % Bottom padding
+  width=\textwidth, % Box width set to text width
+  halign=left % Text aligned to the left
+}
+
+% Change the page margins if you want
+% \geometry{left=1cm,right=1cm,top=1.5cm,bottom=1.5cm}
+
+% Change the colours if you want
+% \definecolor{SwishLineColour}{HTML}{00FFFF}
+% \definecolor{MarkerColour}{HTML}{0000CC}
+
+% Change the item prefix marker if you want
+% \prefixmarker{$\diamond$}
+
+%% Photo is only shown if "fullonly" is included
+\includecomment{fullonly}
+% \excludecomment{fullonly}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\leftheader{%
+  {\LARGE\bfseries\sffamily Johan Tryti}\\[8pt]
+
+  % First line of contact fields
+  \makefield{\faEnvelope[regular]}{\href{mailto:johantryti@gmail.com}{\texttt{johantryti@gmail.com}}}
+  \hspace{1.5em}
+  \makefield{\faLinkedin}{\href{https://www.linkedin.com/in/johan-tryti-a0a5a017a/}{\texttt{linkedin}}}
+  \hspace{1.5em}
+  % Second line of contact fields
+  \makefield{\faGithub}{\href{https://github.com/N4h0}{\texttt{GitHub}}}\\[3pt]  % <-- Small vertical gap
+  \makefield{\faPhone}{\texttt{+47 413 63 740}}
+}
+
+\rightheader{~}
+\begin{fullonly}
+\photo[r]{photo.jpg}
+\photoscale{0.13}
+\end{fullonly}
+
+\title{Curriculum Vitae}
+
+
+
+\begin{document}
+
+\makeatletter
+\renewcommand{\entry}[2][]{%
+  \par\noindent%
+  \parbox[t]{\linewidth}{%
+    \makebox[\entrylabelwidthcustom][l]{\textbf{#1}}%
+    \parbox[t]{\dimexpr\linewidth-\entrylabelwidthcustom\relax}{#2}%
+  }%
+  \par\vspace{4pt}%
+}
+\makeatother
+
+\makeheaders[c]
+
+\input{content}
+
+% If you're not a researcher nor an academic, you probably don't have any publications; delete this line.
+%% Sometimes when a section can't be nicely modelled with the \entry[]... mechanism; hack our own and use \input NOT \makerubric
+% \input{publications}
+
+%\makerubric{misc}
+
+\pagebreak
+% \makerubric{referanser}
+% \input{referee-full}
+
+\end{document}

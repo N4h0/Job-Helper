@@ -87,12 +87,14 @@ export function runFinnScraper() {
   // Get the current page URL
   const url = window.location.href;
 
-  // Stillingsbeskrivelse
-  let jobDescription = '';
-  const jobSection = document.querySelector('section > h1.t3')?.parentElement;
-  if (jobSection) {
-    jobDescription = jobSection.innerText.trim();
-  }
+// Stillingsbeskrivelse
+let jobDescription = '';
+const jobSection = document.querySelector('section > h1.t3')?.parentElement;
+if (jobSection) {
+  jobDescription = jobSection.innerText
+    .replace(/\s+/g, ' ') // remove excessive whitespace
+    .trim();
+}
 
   // Beskrivelse av firma
   let companyDescription = '';
@@ -124,8 +126,8 @@ export function runFinnScraper() {
     datoAvslag: '', // DateTime format of the time I got a rejection
     stegVidere: '',
     url: url,  // Add the URL to the job object
-    jobDescription,        // ✅ NEW
-    companyDescription   
+    jobDescription,
+    companyDescription
   };
 
   console.log('✅ Scraped Job (plain object):', job);

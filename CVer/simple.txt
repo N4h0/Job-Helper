@@ -1,0 +1,41 @@
+## Key Qualifications
+
+My name: Johan Tryti
+
+BSc in Software Engineering, plus MSc in Radioecology and BSc in Chemistry
+
+Backend development experience using Python, Java (object-oriented and modular design)
+
+Academic projects involving databases and full-stack web applications
+
+Team collaboration experience through university and working as a martial arts instructor
+
+## Education
+B.Sc. Software Engineering – OsloMet (2021–2024)
+Focus: Agile teamwork, Java programming, full-stack development. Examples of projects I've worked on:
+A simple react website with MongoDB-interaction.
+A complete website with CRUD functionality, built on an MVC (Model View Controller) framework, plus a corresponding version using Angular.
+A fully client-side rendered website for an accounting firm.
+A chatbot for the website mentioned above, along with local testing of that chatbot.
+A protocol for transmitting data over a simulated network.
+
+M.Sc. Radioecology – NMBU (2019–2021)
+Focus: Environmental data analysis, scientific reporting. Analysing results and drawing conclusions. Have a lot of experience doing experiments 
+and using statistics to explain the findings and draw conclusions. 
+
+B.Sc. Chemistry – NMBU (2016–2019)
+Focus: Analytical chemistry, lab methodology and writing good report. 
+
+## Work Experience
+Receptionist & Martial Arts Instructor – Mudo Gym Torshov (2022–2024)
+Led adult fitness and children’s martial arts classes. On-call instructor from 2024.
+
+Bicycle Courier – Foodora (2021)
+
+Cultural Heritage Guide – Fortidsminneforeningen (2013–2019)
+Gave historical tours in multiple languages (including German).
+
+## Technical Skills
+Programming: Java, Python, SQL, R, MATLAB, LaTeX
+Web Development: HTML, CSS, JavaScript, TypeScript, React, Angular, .NET, MVC
+Languages: Norwegian (native), English (fluent), German (B2)
