@@ -1,6 +1,33 @@
 export function runFinnScraper() {
   console.log("Running scraper inside the page...");
 
+  // ✅ Utility: Convert date to dd/mm/yyyy from both `dd.mm.yyyy` and `1. januar 2025`
+  function formatDate(rawDate) {
+    const clean = rawDate.replace(/\u00A0/g, ' ').trim(); // Replace non-breaking spaces
+
+    const numericMatch = clean.match(/^(\d{1,2})[.\-](\d{1,2})[.\-](\d{4})$/);
+    if (numericMatch) {
+      const [, day, month, year] = numericMatch;
+      return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+    }
+
+    const textMatch = clean.match(/^(\d{1,2})\.\s*([a-zæøå]+)\s+(\d{4})$/i);
+    if (textMatch) {
+      const [, day, monthName, year] = textMatch;
+      const months = {
+        januar: '01', februar: '02', mars: '03', april: '04', mai: '05', juni: '06',
+        juli: '07', august: '08', september: '09', oktober: '10', november: '11', desember: '12'
+      };
+      const month = months[monthName.toLowerCase()];
+      if (month) return `${day.padStart(2, '0')}/${month}/${year}`;
+    }
+
+    return rawDate;
+  }
+
+
+
+
   // Stillingstittel
   const heading = document.querySelector('h2');
   const stillingstittel = heading ? heading.textContent.trim() : '';
@@ -10,28 +37,28 @@ export function runFinnScraper() {
   const firma = firmaElement ? firmaElement.textContent.trim() : '';
 
   // Frist
-  let frist = '';
   const allLiElements = document.querySelectorAll('li.flex.flex-col');
+  let frist = '';
   allLiElements.forEach(li => {
     if (li.textContent.includes('Frist')) {
       const span = li.querySelector('span.font-bold');
       if (span) {
-        const rawFrist = span.textContent.trim();
-        frist = rawFrist.replaceAll('.', '/');
+        const rawFrist = span.textContent ? span.textContent.trim() : '';
+        frist = formatDate(rawFrist);
       }
     }
   });
 
   // Stilling opprettet
-  let stillingOpprettet = '';
   const allLiGapElements = document.querySelectorAll('li.flex.gap-x-16');
+  let stillingOpprettet = '';
   allLiGapElements.forEach(li => {
     if (li.textContent.includes('Sist endret')) {
       const time = li.querySelector('time');
       if (time) {
-        const fullText = time.textContent.trim();
+        const fullText = time.textContent ? time.textContent.trim() : '';
         const datePart = fullText.split(',')[0];
-        stillingOpprettet = datePart.replaceAll('.', '/');
+        stillingOpprettet = formatDate(datePart);
       }
     }
   });
@@ -87,14 +114,14 @@ export function runFinnScraper() {
   // Get the current page URL
   const url = window.location.href;
 
-// Stillingsbeskrivelse
-let jobDescription = '';
-const jobSection = document.querySelector('section > h1.t3')?.parentElement;
-if (jobSection) {
-  jobDescription = jobSection.innerText
-    .replace(/\s+/g, ' ') // remove excessive whitespace
-    .trim();
-}
+  // Stillingsbeskrivelse
+  let jobDescription = '';
+  const jobSection = document.querySelector('section > h1.t3')?.parentElement;
+  if (jobSection) {
+    jobDescription = jobSection.innerText
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
 
   // Beskrivelse av firma
   let companyDescription = '';
@@ -102,38 +129,52 @@ if (jobSection) {
   if (companySection) {
     const intro = companySection.querySelector('div.import-decoration em');
     const cleanedIntro = intro ? intro.textContent.trim() : '';
-
     companyDescription = cleanedIntro;
   }
 
   // ✅ Build final job object
   const job = {
-    stillingstittel: stillingstittel,// Here there's also going to be a hyperlink to my application letter
-    firma: firma, // Hyperlink to the job url
-    stillingOpprettet: stillingOpprettet, // Here there's also going to be a hyperlink to my CV. If not found, the date is NotFound (string).
-    frist: frist, // Hyperlink to the downloaded job ad
+    stillingstittel,
+    firma,
+    stillingOpprettet,
+    frist,
     pros: '',
     cons: '',
     notat: '',
-    sendt: '', // DateTime format of the time I sent the application
-    lagtInn: lagtInn, // DateTime format of the time I added the application to my google docs
-    sektor: sektor,
-    sted: sted,
-    bransje: bransje,
-    stillingsfunksjon: stillingsfunksjon,
-    arbeidsspråk: arbeidsspråk,
-    nøkkelord: nøkkelord,
-    datoAvslag: '', // DateTime format of the time I got a rejection
+    sendt: '',
+    lagtInn,
+    sektor,
+    sted,
+    bransje,
+    stillingsfunksjon,
+    arbeidsspråk,
+    nøkkelord,
+    datoAvslag: '',
     stegVidere: '',
-    url: url,  // Add the URL to the job object
+    url,
     jobDescription,
     companyDescription
   };
 
   console.log('✅ Scraped Job (plain object):', job);
 
-  chrome.runtime.sendMessage({
-    type: "jobScraped",
-    payload: job
-  });
+  // ✅ Send message with error handling
+  try {
+    chrome.runtime.sendMessage(
+      {
+        type: "jobScraped",
+        payload: job,
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error("Failed to send message:", chrome.runtime.lastError);
+        } else {
+          console.log("Job data sent to background script");
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Failed to send message to Chrome runtime:", error);
+  }
 }
+

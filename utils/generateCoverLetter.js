@@ -6,31 +6,13 @@ import path from 'path';
 
 dotenv.config({ path: './credentials/.env' });
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function generateCoverLetter() {
-  const jobFilePath = './debug-latest-job.json';
-
-  if (!fs.existsSync(jobFilePath)) {
-    console.error('❌ Could not find debug-latest-job.json');
-    process.exit(1);
-  }
-
-  const job = JSON.parse(fs.readFileSync(jobFilePath, 'utf-8'));
-  const docId = job.generatedDocId;
-
-  if (!docId) {
-    console.error('❌ No generatedDocId found in the job object');
-    return;
-  }
-
+export async function generateCoverLetter(job, documentId) {
   const { llmSettings = {} } = job;
-
-  const language = llmSettings.språk || 'nynorsk';
-  const tone = llmSettings.tone || 'profesjonell';
-  const model = llmSettings.model || 'gpt-4';
+  const language = job.llmSettings?.språk;
+  const tone = job.llmSettings?.tone;
+  const model = job.llmSettings?.model;
   const maxLength = llmSettings.maxLength || 350;
   const cvName = llmSettings.resumePreset?.toLowerCase().replace('resume – ', '') || 'simple';
 
@@ -70,7 +52,7 @@ ${companyDesc}
 
 == CV ==
 ${cvText}
-`;
+  `;
 
   const chat = await openai.chat.completions.create({
     model,
@@ -96,24 +78,38 @@ ${cvText}
   const client = await auth.getClient();
   const docs = google.docs({ version: 'v1', auth: client });
 
-  await docs.documents.batchUpdate({
-    documentId: docId,
-    requestBody: {
-      requests: [
-        {
-          insertText: {
-            location: { index: 1 },
-            text: `${letter}\n\n`
-          }
-        }
-      ]
+
+// Get the document content
+const doc = await docs.documents.get({ documentId });
+const body = doc.data.body;
+const content = body?.content || [];
+const endIndex = content.length > 0 ? content[content.length - 1].endIndex || 1 : 1;
+
+const requests = [];
+
+// ✅ Only add deleteContentRange if document contains content beyond the header
+if (endIndex > 2) {
+  requests.push({
+    deleteContentRange: {
+      range: {
+        startIndex: 1,
+        endIndex: endIndex - 1
+      }
     }
   });
-
-  console.log(`✅ Cover letter written to doc: https://docs.google.com/document/d/${docId}`);
 }
 
-// If run directly from CLI
-if (import.meta.url === `file://${process.argv[1]}`) {
-  generateCoverLetter();
+requests.push({
+  insertText: {
+    location: { index: 1 },
+    text: `${letter}\n\n`
+  }
+});
+
+await docs.documents.batchUpdate({
+  documentId,
+  requestBody: { requests }
+});
+
+  console.log(`✅ Cover letter written to doc: https://docs.google.com/document/d/${documentId}`);
 }

@@ -4,6 +4,14 @@ import { exec } from 'child_process';
 import { google } from 'googleapis';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import { OpenAI } from 'openai';
+
+dotenv.config({ path: './credentials/.env' });
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 const execAsync = promisify(exec);
 
@@ -18,17 +26,51 @@ export async function generateCV() {
   const templatePath = path.resolve(`${cvFolder}/contentTemplates/${lang}/${profile}.tex`);
   const outputPath = path.resolve(`${cvFolder}/content.tex`);
   const fileSafeName = `${job.firma}_${job.stillingstittel}`.replace(/[\/\\:*?"<>|]/g, '_');
-
   const now = new Date();
   const formattedDate = `${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
 
   if (!fs.existsSync(templatePath)) throw new Error(`Template not found: ${templatePath}`);
-  fs.copyFileSync(templatePath, outputPath);
+
+  const templateContent = fs.readFileSync(templatePath, 'utf-8');
+
+  const prompt = `You are a helpful assistant updating a LaTeX CV for a specific job application.
+Only modify the text content of the LaTeX source to better match the job, without changing formatting.
+Keep the length roughly the same and do not invent any qualifications.
+Write in the same language as the CV template: ${lang}.
+
+Job Title: ${job.stillingstittel}
+Company: ${job.firma}
+
+Job Description:
+${job.jobDescription || 'Not provided'}
+
+Company Description:
+${job.companyDescription || 'Not provided'}
+
+LaTeX CV Template:
+${templateContent}`;
+
+  const chat = await openai.chat.completions.create({
+    model: job.llmSettings?.model,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a helpful assistant that updates LaTeX resumes to match job descriptions.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ]
+  });
+
+  const tailoredCV = chat.choices[0].message.content;
+  fs.writeFileSync(outputPath, tailoredCV);
 
   const backupDir = path.resolve(`${cvFolder}/oldContentFiles`);
   const backupPath = path.resolve(backupDir, `${fileSafeName}_${formattedDate}.tex`);
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-  fs.copyFileSync(outputPath, backupPath);
+  fs.writeFileSync(backupPath, tailoredCV);
 
   await execAsync('latexmk -pdf cv.tex', { cwd: cvFolder });
 
