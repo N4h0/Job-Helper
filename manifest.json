@@ -3,12 +3,24 @@
   "name": "Finn.no Checker",
   "version": "1.0",
   "description": "Logs whether the user is on finn.no",
-  "permissions": ["tabs", "scripting", "notifications"],
+  "permissions": [
+       "tabs",
+       "scripting",
+       "notifications",
+       "storage",
+       "tabs",
+       "scripting",
+       "notifications"
+      ],
   "host_permissions": [
     "https://www.finn.no/*"
   ],
   "action": {
     "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
   "commands": {
     "check-finn": {

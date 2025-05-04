@@ -1,51 +1,59 @@
+// utils/generateCV.js
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
-import { google } from 'googleapis';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { OpenAI } from 'openai';
+import { google } from 'googleapis';
+import { extractGoogleId } from './extractLinkId.js';
 
 dotenv.config({ path: './credentials/.env' });
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
 const execAsync = promisify(exec);
+const openai   = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// — load options.json relative to this file —
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
+const options    = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '../options.json'), 'utf-8')
+);
+
+// derive your Drive-folder ID from the “CVer” URL in options.json
+const DRIVE_FOLDER_ID = extractGoogleId(options.CVer);
+if (!DRIVE_FOLDER_ID) {
+  throw new Error(`Could not extract Drive folder ID from options.CVer="${options.CVer}"`);
+}
+
+// local paths
+const JOB_PATH = path.resolve('./debug-latest-job.json');
+const CV_FOLDER = path.resolve('./LatexCV');
 
 export async function generateCV() {
-  const jobPath = './debug-latest-job.json';
-  const cvFolder = './LatexCV';
+  // 1) read the most recent job
+  const job = JSON.parse(fs.readFileSync(JOB_PATH, 'utf-8'));
+  const lang    = job.llmSettings?.språk;
+  const profile = job.llmSettings?.resumePreset;
 
-  const job = JSON.parse(fs.readFileSync(jobPath, 'utf-8'));
-  const lang = job.llmSettings?.språk || 'english';
-  const profile = job.llmSettings?.resumePreset || 'simple';
-
-  const templatePath = path.resolve(`${cvFolder}/contentTemplates/${lang}/${profile}.tex`);
-  const outputPath = path.resolve(`${cvFolder}/content.tex`);
-  const fileSafeName = `${job.firma}_${job.stillingstittel}`.replace(/[\/\\:*?"<>|]/g, '_');
-  const now = new Date();
-  const formattedDate = `${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
-
-  if (!fs.existsSync(templatePath)) throw new Error(`Template not found: ${templatePath}`);
-
+  // 2) load and validate your .tex template
+  const templatePath = path.resolve(`${CV_FOLDER}/contentTemplates/${lang}/${profile}.tex`);
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Template not found: ${templatePath}`);
+  }
   const templateContent = fs.readFileSync(templatePath, 'utf-8');
 
-  const prompt = `You are a helpful assistant updating a LaTeX CV for a specific job application.
-Only modify the text content of the LaTeX source to better match the job, without changing formatting.
-Keep the length roughly the same and do not invent any qualifications.
-Write in the same language as the CV template: ${lang}.
-
+  // 3) build the prompt and call OpenAI
+  const prompt = `Only use the information provided in the CV and job description...
+Language: ${lang}
 Job Title: ${job.stillingstittel}
 Company: ${job.firma}
 
 Job Description:
-${job.jobDescription || 'Not provided'}
+${job.jobDescription}
 
 Company Description:
-${job.companyDescription || 'Not provided'}
+${job.companyDescription}
 
 LaTeX CV Template:
 ${templateContent}`;
@@ -53,62 +61,70 @@ ${templateContent}`;
   const chat = await openai.chat.completions.create({
     model: job.llmSettings?.model,
     messages: [
-      {
-        role: 'system',
-        content: 'You are a helpful assistant that updates LaTeX resumes to match job descriptions.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
+      { role: 'system', content: 'You are a helpful assistant that updates LaTeX resumes.' },
+      { role: 'user',   content: prompt }
     ]
   });
 
   const tailoredCV = chat.choices[0].message.content;
-  fs.writeFileSync(outputPath, tailoredCV);
+  const match = tailoredCV.match(/\\begin{greenbox}[\s\S]*\\vspace{2pt}/);
+  if (!match) throw new Error('No LaTeX block found in LLM response.');
 
-  const backupDir = path.resolve(`${cvFolder}/oldContentFiles`);
-  const backupPath = path.resolve(backupDir, `${fileSafeName}_${formattedDate}.tex`);
+  const latexOnly = match[0];
+  const outputPath = path.resolve(`${CV_FOLDER}/content.tex`);
+  fs.writeFileSync(outputPath, latexOnly);
+
+  // 4) backup old version
+  const now = new Date();
+  const stamp = `${String(now.getMonth()+1).padStart(2,'0')}_${now.getFullYear()}`;
+  const safeName = `${job.firma}_${job.stillingstittel}`.replace(/[\/\\:*?"<>|]/g,'_');
+  const backupDir  = path.resolve(`${CV_FOLDER}/oldContentFiles`);
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-  fs.writeFileSync(backupPath, tailoredCV);
+  fs.writeFileSync(
+    path.join(backupDir, `${safeName}_${stamp}.tex`),
+    latexOnly
+  );
 
-  await execAsync('latexmk -pdf cv.tex', { cwd: cvFolder });
+  // 5) compile to PDF
+  await execAsync('latexmk -pdf cv.tex', { cwd: CV_FOLDER });
+  const pdfPath = path.resolve(CV_FOLDER, 'cv.pdf');
+  const fileName = `${safeName}_${stamp}.pdf`;
 
-  const auth = new google.auth.GoogleAuth({
+  // 6) upload (or update) in Google Drive
+  const auth   = new google.auth.GoogleAuth({
     keyFile: './credentials/googleDrive.json',
     scopes: ['https://www.googleapis.com/auth/drive']
   });
   const client = await auth.getClient();
-  const drive = google.drive({ version: 'v3', auth: client });
+  const drive  = google.drive({ version: 'v3', auth: client });
 
-  const fileName = `${fileSafeName}_${formattedDate}.pdf`;
-  const driveFolderId = '1AqQhCSsLCNlMe_6l1D6ncK8LYey9aFJ0';
-  const cvPdfPath = path.resolve(cvFolder, 'cv.pdf');
-
+  // see if it already exists
   const listRes = await drive.files.list({
-    q: `'${driveFolderId}' in parents and name='${fileName}' and trashed = false`,
+    q: `'${DRIVE_FOLDER_ID}' in parents and name='${fileName}' and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive'
   });
 
   const media = {
     mimeType: 'application/pdf',
-    body: fs.createReadStream(cvPdfPath)
+    body: fs.createReadStream(pdfPath)
   };
 
   let fileId;
-  if (listRes.data.files.length > 0) {
+  if ((listRes.data.files||[]).length) {
+    // update
     const updateRes = await drive.files.update({
       fileId: listRes.data.files[0].id,
       media
     });
     fileId = updateRes.data.id;
   } else {
+    // create
     const createRes = await drive.files.create({
       resource: {
         name: fileName,
         mimeType: 'application/pdf',
-        parents: [driveFolderId]
+        parents: [DRIVE_FOLDER_ID]
       },
       media,
       fields: 'id'
@@ -119,12 +135,12 @@ ${templateContent}`;
   return fileId;
 }
 
-// CLI entrypoint:
+// allow CLI invocation
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   generateCV()
     .then(id => console.log(`RETURN_FILE_ID::${id}`))
     .catch(err => {
-      console.error('❌ Error in generateCV:', err.message);
+      console.error('❌ Error in generateCV:', err);
       process.exit(1);
     });
 }

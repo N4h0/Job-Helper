@@ -1,0 +1,67 @@
+Key Qualifications
+Name: Johan Tryti
+
+Chemistry Credentials: M.Sc. in Radioecology; B.Sc. in Chemistry
+
+Laboratory Expertise: Hands-on experience with radionuclide manipulation, sample preparation, QA/QC, and strict adherence to laboratory safety protocols
+
+Analytical Techniques: ICP-MS, HPLC, gamma spectrometry, UV-Vis spectroscopy, radiochemical separations
+
+Data Analysis & Reporting: Experimental design, statistical analysis (R, MATLAB), scientific writing and clear presentation of results
+
+Communication & Collaboration: Multilingual science communicator (Norwegian, English, German), honed through guided tours and teaching roles; effective team player in research groups and instructional settings
+
+Education
+M.Sc. Radioecology
+Norwegian University of Life Sciences (NMBU), Ås (2019–2021)
+
+Thesis: Manipulated radionuclides in water samples and quantified distribution changes via ICP-MS
+
+Key coursework: Experimental Radioecology; Radiochemistry; Instrumental Inorganic Analysis; Statistics for Scientists; Academic Scientific Writing
+
+B.Sc. Chemistry
+Norwegian University of Life Sciences (NMBU), Ås (2016–2019)
+
+Focus areas: Extended organic, inorganic, physical, and analytical chemistry, all with extensive laboratory components
+
+Analytical labs: HPLC separations, mass spectrometry experiments, titrations, and spectrophotometry
+
+Supplementary studies: Statistics; 10 ECTS in academic writing; rigorous training in lab methodology and report preparation
+
+B.Sc. Software Engineering
+OsloMet – Oslo Metropolitan University (2021–2024)
+
+Maintained a solid grounding in programming and data structures to support advanced data analysis needs
+
+Selected coursework: Java programming, databases, full-stack concepts (overview only)
+
+Work Experience
+Cultural Heritage Guide
+Fortidsminneforeningen (2013–2019)
+
+Led historical tours at Hopperstad Stave Church in Norwegian, English, and German
+
+Managed ticketing, site upkeep, and daily financial reconciliation
+
+Praised for engaging, clear communication and multilingual proficiency
+
+Receptionist & Martial Arts Instructor
+Mudo Gym Torshov (2022–2024)
+
+Designed and delivered structured martial arts classes for adults and children
+
+Developed strong instructional, leadership, and interpersonal skills; served as on-call instructor beginning 2024
+
+Bicycle Courier
+Foodora (2021)
+
+Executed timely, reliable deliveries under tight deadlines, demonstrating efficiency and resilience
+
+Technical Skills
+Analytical Instrumentation: ICP-MS, HPLC, gamma spectrometry, UV-Vis spectroscopy, radiochemical separations
+
+Laboratory Techniques: Sample preparation, QA/QC procedures, GLP/GMP safety standards, experimental design
+
+Data & Software: R, MATLAB, Python (for data processing), Microsoft Excel; LaTeX for scientific documentation
+
+Languages: Norwegian (native), English (fluent), German (B2)

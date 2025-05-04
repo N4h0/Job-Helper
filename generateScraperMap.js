@@ -1,4 +1,4 @@
-// Run with the command generateScaperMap.js, which generates a simple file showing all websites which can be scraped - mix between hardcoding names 
+// Run with the command generateScaperMap.js, which generates a simple file showing all websites which can be scraped - mix between hardcoding and automation of scrapers - ish. 
 
 import fs from 'fs';
 import path from 'path';

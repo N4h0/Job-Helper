@@ -22,7 +22,11 @@ package-lock.json
 credentials/
 *.key
 *.pem
-*.json
+options.json 
+*.env
+googleDrive.json
+debug-latest-job.json
+content.tex
 
 # System / OS
 *.DS_Store

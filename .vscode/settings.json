@@ -1,0 +1,20 @@
+{
+  "files.exclude": {
+"**/*.aux": true,
+"**/*.bbl": true,
+"**/*.blg": true,
+"**/*.log": true,
+"**/*.synctex.gz": true,
+"**/*.out": true,
+"**/*.fdb_latexmk": true,
+"**/*.cut": true,
+"**/*.bbl-SAVE-ERROR": true,
+"**/*.bcf": true,
+"**/*.gz": true,
+"**/*.xml": true,
+"**/*.bib": true,
+"**/*.ini": true,
+"**/*.bcf-SAVE-ERROR": true,
+"**/*.fls": true
+}
+}

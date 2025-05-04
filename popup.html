@@ -7,13 +7,70 @@
       width: 300px;
       padding: 10px;
       font-family: Arial, sans-serif;
+      position: relative;
+    }
+    #options-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: transparent;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+    }
+    #options-button svg {
+      width: 100%;
+      height: 100%;
+      fill: #555;
+    }
+    #options-button:hover svg {
+      fill: #000;
+    }
+    /* Options menu container */
+    #options-menu {
+      display: none;
+      position: absolute;
+      top: 40px;
+      right: 10px;
+      width: 280px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      z-index: 100;
     }
   </style>
 </head>
 <body>
+  <!-- Gear icon button -->
+  <button id="options-button" title="Options">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.61-.22l-2.39.96a7.007 7.007 0 00-1.6-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54c-.59.22-1.14.52-1.6.94l-2.39-.96a.5.5 0 00-.61.22L2.71 8.88a.5.5 0 00.12.64l2.03 1.58a7.112 7.112 0 000 1.88l-2.03 1.58a.5.5 0 00-.12.64l1.92 3.32c.14.24.44.34.7.22l2.39-.96c.46.42 1.01.72 1.6.94l.36 2.54c.05.28.29.48.57.48h3.84c.28 0 .52-.2.57-.48l.36-2.54c.59-.22 1.14-.52 1.6-.94l2.39.96c.26.11.56.02.7-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z"/>
+    </svg>
+  </button>
+
+  <!-- Empty menu; fields will be injected by options.js -->
+  <div id="options-menu"></div>
+
   <h1>Finn.no Checker</h1>
   <p id="result"></p>
 
+  <script>
+    const btn = document.getElementById('options-button');
+    const menu = document.getElementById('options-menu');
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    });
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && e.target !== btn) {
+        menu.style.display = 'none';
+      }
+    });
+  </script>
+  <script type="module" src="options.js"></script>
   <script type="module" src="popup.js"></script>
 </body>
-</html>
