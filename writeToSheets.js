@@ -37,10 +37,10 @@ const auth = new google.auth.GoogleAuth({
     'https://www.googleapis.com/auth/drive'
   ]
 });
-const SPREADSHEET_ID         = extractGoogleId(rawOpts.spreadsheet);
-const coverLettersFolderId   = extractGoogleId(rawOpts.CVer);
-const htmlFilesFolderId      = extractGoogleId(rawOpts.JobbutlysningerHTML);
-const sheetsToCheck          = ['Planlagt/usikker','Sendt/ligg inne','Avslått','Søkte ikkje'];
+const SPREADSHEET_ID = extractGoogleId(options.spreadsheet);
+const coverLettersFolderId = extractGoogleId(options.Søknader);
+const htmlFilesFolderId = extractGoogleId(options.JobbutlysningerHTML);
+const sheetsToCheck = ['Planlagt/usikker', 'Sendt/ligg inne', 'Avslått', 'Søkte ikkje'];
 
 app.use(express.json({ limit: '5mb' }));
 app.use(bodyParser.json());
@@ -68,7 +68,7 @@ app.post('/submit-job', async (req, res) => {
 
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client });
-    const drive  = google.drive({ version: 'v3', auth: client });
+    const drive = google.drive({ version: 'v3', auth: client });
 
     const createdSummaries = [];
 
@@ -85,17 +85,17 @@ app.post('/submit-job', async (req, res) => {
         });
         for (const row of getRes.data.values || []) {
           const [t, f, d] = row;
-          if (t===job.stillingstittel && f===job.firma && d===job.stillingOpprettet) {
+          if (t === job.stillingstittel && f === job.firma && d === job.stillingOpprettet) {
             throw new Error(`Job already exists in sheet "${sheetName}"`);
           }
         }
       }
 
       // 3b) Build a safe title & timestamp
-      const now   = new Date();
-      const stamp = `${(now.getMonth()+1).toString().padStart(2,'0')}_${now.getFullYear()}`;
-      const safe  = (job.firma + '_' + job.stillingstittel)
-                      .replace(/[\/\\:*?"<>|]/g,'_');
+      const now = new Date();
+      const stamp = `${(now.getMonth() + 1).toString().padStart(2, '0')}_${now.getFullYear()}`;
+      const safe = (job.firma + '_' + job.stillingstittel)
+        .replace(/[\/\\:*?"<>|]/g, '_');
       const docTitle = `${safe}_${stamp}`;
 
       // 3c) Delete any old cover‐letter, then create a fresh Google Doc
@@ -106,19 +106,19 @@ app.post('/submit-job', async (req, res) => {
             and trashed=false`,
         fields: 'files(id)'
       });
-      if ((listRes.data.files||[]).length) {
+      if ((listRes.data.files || []).length) {
         await drive.files.delete({ fileId: listRes.data.files[0].id });
       }
       const createDoc = await drive.files.create({
         resource: {
           name: docTitle,
-          mimeType:'application/vnd.google-apps.document',
-          parents:[coverLettersFolderId]
+          mimeType: 'application/vnd.google-apps.document',
+          parents: [coverLettersFolderId]
         },
-        fields:'id,webViewLink'
+        fields: 'id,webViewLink'
       });
       const documentId = createDoc.data.id;
-      const docUrl     = createDoc.data.webViewLink;
+      const docUrl = createDoc.data.webViewLink;
 
       // 3d) Upload the raw HTML snippet as its own file
       if (!job.htmlContent) {
@@ -128,20 +128,18 @@ app.post('/submit-job', async (req, res) => {
       const htmlUp = await drive.files.create({
         resource: {
           name: htmlName,
-          mimeType:'text/html',
-          parents:[htmlFilesFolderId]
+          mimeType: 'text/html',
+          parents: [htmlFilesFolderId]
         },
         media: {
-          mimeType:'text/html',
+          mimeType: 'text/html',
           body: job.htmlContent
         },
-        fields:'webViewLink'
+        fields: 'webViewLink'
       });
       const htmlUrl = htmlUp.data.webViewLink.split('?')[0];
 
-      // 3e) Write out the job JSON + the five extra fields
-      const outDir = path.resolve('./jobs');
-      if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
+      // 3e) Upload job JSON to Drive (jobJSONObjects folder)
       const jsonOut = {
         ...job,
         oldContentFiles,
@@ -151,12 +149,23 @@ app.post('/submit-job', async (req, res) => {
         generatedDocId: documentId,
       };
       const jsonName = `${safe}_${stamp}.json`;
-      const jsonPath = path.join(outDir, jsonName);
-      fs.writeFileSync(jsonPath, JSON.stringify(jsonOut, null,2), 'utf-8');
+
+      await drive.files.create({
+        resource: {
+          name: jsonName,
+          mimeType: 'application/json',
+          parents: [extractGoogleId(options.jobJSONObjects)]
+        },
+        media: {
+          mimeType: 'application/json',
+          body: Buffer.from(JSON.stringify(jsonOut, null, 2))
+        },
+        fields: 'id'
+      });
 
       // 3f) Append to your “Planlagt/usikker” sheet
-      const frist = (!job.frist || ['NotFound','Ikke oppgitt'].includes(job.frist))
-                    ? 'Ikkje oppgitt' : job.frist;
+      const frist = (!job.frist || ['NotFound', 'Ikke oppgitt'].includes(job.frist))
+        ? 'Ikkje oppgitt' : job.frist;
       const rowValues = [
         `=HYPERLINK("${docUrl}","${job.stillingstittel}")`,
         `=HYPERLINK("${job.url}","${job.firma}")`,
@@ -174,35 +183,89 @@ app.post('/submit-job', async (req, res) => {
       // find next empty row
       const getColB = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range:'Planlagt/usikker!B2:B'
+        range: 'Planlagt/usikker!B2:B'
       });
-      const nextRow = ((getColB.data.values||[]).length + 2);
+      const nextRow = ((getColB.data.values || []).length + 2);
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range:`Planlagt/usikker!B${nextRow}`,
-        valueInputOption:'USER_ENTERED',
-        insertDataOption:'INSERT_ROWS',
-        requestBody:{ values:[rowValues] }
+        range: `Planlagt/usikker!B${nextRow}`,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [rowValues] }
       });
 
-      // 3g) (Optional) styling/borders omitted for brevity…
+      // 3g) Write out the job JSON to a file for debugging and usage laterz
+      fs.writeFileSync('debug-latest-job.json', JSON.stringify(job, null, 2), 'utf-8');
+
+      // 3g) Styling/borders omitted for brevity…
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [
+            {
+              repeatCell: {
+                range: {
+                  sheetId: 0,
+                  startRowIndex: nextRow - 1,
+                  endRowIndex: nextRow,
+                  startColumnIndex: 1,
+                  endColumnIndex: 18,
+                },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.85, green: 1.0, blue: 0.85 },
+                    horizontalAlignment: 'LEFT',
+                    wrapStrategy: 'CLIP'
+                  }
+                },
+                fields: 'userEnteredFormat(backgroundColor,horizontalAlignment,wrapStrategy)',
+              }
+            },
+            {
+              updateBorders: {
+                range: {
+                  sheetId: 0,
+                  startRowIndex: nextRow - 1,
+                  endRowIndex: nextRow,
+                  startColumnIndex: 1,
+                  endColumnIndex: 18,
+                },
+                top: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+                left: { style: 'SOLID', width: 2, color: { red: 0, green: 0, blue: 0 } },
+                right: { style: 'SOLID', width: 2, color: { red: 0, green: 0, blue: 0 } },
+                bottom: { style: 'SOLID', width: 2, color: { red: 0, green: 0, blue: 0 } },
+                innerHorizontal: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+                innerVertical: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } }
+              }
+            }
+          ]
+        }
+      });
 
       // 3h) Generate CV / Cover letter if requested
       const tasks = [];
       if (job.booleanCV) {
         tasks.push(
-          generateCV()
-            .then(fileId => {
-              const cvLink = `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","CV")`;
-              return sheets.spreadsheets.values.update({
-                spreadsheetId: SPREADSHEET_ID,
-                range:`Planlagt/usikker!D${nextRow}`,
-                valueInputOption:'USER_ENTERED',
-                requestBody:{ values:[[cvLink]] }
-              });
-            })
+          generateCV().then(fileId => {
+            job.cvFileId = fileId;
+
+            const cvLink = `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view", "${job.stillingOpprettet}")`;
+
+            return sheets.spreadsheets.values.update({
+              spreadsheetId: SPREADSHEET_ID,
+              range: `Planlagt/usikker!D${nextRow}`, // you had firstEmptyRow, but you're using nextRow earlier
+              valueInputOption: 'USER_ENTERED',
+              requestBody: {
+                values: [[cvLink]]
+              }
+            }).then(() => {
+              console.log(`📎 CV link added to cell D${nextRow}`);
+            });
+          }).catch(err => console.error('❌ CV generation failed:', err.message))
         );
       }
+
+
       if (job.booleanGenerateCoverLetter) {
         tasks.push(generateCoverLetter(job, documentId));
       }
@@ -233,4 +296,3 @@ app.post('/submit-job', async (req, res) => {
 app.listen(port, () => {
   console.log(`✅ Sheets API listening at http://localhost:${port}`);
 });
-

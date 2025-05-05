@@ -7,43 +7,42 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { OpenAI } from 'openai';
 import { google } from 'googleapis';
-import { extractGoogleId } from './extractLinkId.js';
+import { extractGoogleId } from './helperFunctions.js';
 
 dotenv.config({ path: './credentials/.env' });
 const execAsync = promisify(exec);
 const openai   = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// — load options.json relative to this file —
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
-const options    = JSON.parse(
+
+const options = JSON.parse(
   fs.readFileSync(path.join(__dirname, '../options.json'), 'utf-8')
 );
 
-// derive your Drive-folder ID from the “CVer” URL in options.json
 const DRIVE_FOLDER_ID = extractGoogleId(options.CVer);
+const SPREADSHEET_ID  = extractGoogleId(options.spreadsheet);
 if (!DRIVE_FOLDER_ID) {
   throw new Error(`Could not extract Drive folder ID from options.CVer="${options.CVer}"`);
 }
+if (!SPREADSHEET_ID) {
+  throw new Error(`Could not extract Spreadsheet ID from options.spreadsheet="${options.spreadsheet}"`);
+}
 
-// local paths
 const JOB_PATH = path.resolve('./debug-latest-job.json');
 const CV_FOLDER = path.resolve('./LatexCV');
 
 export async function generateCV() {
-  // 1) read the most recent job
   const job = JSON.parse(fs.readFileSync(JOB_PATH, 'utf-8'));
   const lang    = job.llmSettings?.språk;
   const profile = job.llmSettings?.resumePreset;
 
-  // 2) load and validate your .tex template
   const templatePath = path.resolve(`${CV_FOLDER}/contentTemplates/${lang}/${profile}.tex`);
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Template not found: ${templatePath}`);
   }
   const templateContent = fs.readFileSync(templatePath, 'utf-8');
 
-  // 3) build the prompt and call OpenAI
   const prompt = `Only use the information provided in the CV and job description...
 Language: ${lang}
 Job Title: ${job.stillingstittel}
@@ -74,31 +73,39 @@ ${templateContent}`;
   const outputPath = path.resolve(`${CV_FOLDER}/content.tex`);
   fs.writeFileSync(outputPath, latexOnly);
 
-  // 4) backup old version
   const now = new Date();
   const stamp = `${String(now.getMonth()+1).padStart(2,'0')}_${now.getFullYear()}`;
   const safeName = `${job.firma}_${job.stillingstittel}`.replace(/[\/\\:*?"<>|]/g,'_');
-  const backupDir  = path.resolve(`${CV_FOLDER}/oldContentFiles`);
-  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(backupDir, `${safeName}_${stamp}.tex`),
-    latexOnly
-  );
-
-  // 5) compile to PDF
+  
+  // Save to disk temporarily
+  
   await execAsync('latexmk -pdf cv.tex', { cwd: CV_FOLDER });
   const pdfPath = path.resolve(CV_FOLDER, 'cv.pdf');
   const fileName = `${safeName}_${stamp}.pdf`;
 
-  // 6) upload (or update) in Google Drive
   const auth   = new google.auth.GoogleAuth({
     keyFile: './credentials/googleDrive.json',
-    scopes: ['https://www.googleapis.com/auth/drive']
+    scopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
   });
   const client = await auth.getClient();
   const drive  = google.drive({ version: 'v3', auth: client });
+  const sheets = google.sheets({ version: 'v4', auth: client });
 
-  // see if it already exists
+  const texFileName = `${safeName}_${stamp}.tex`;
+
+  await drive.files.create({
+    resource: {
+      name: texFileName,
+      mimeType: 'text/plain',
+      parents: [extractGoogleId(options.oldContentFiles)]
+    },
+    media: {
+      mimeType: 'text/plain',
+      body: fs.createReadStream(path.join(CV_FOLDER, 'content.tex'))
+    },
+    fields: 'id'
+  });
+
   const listRes = await drive.files.list({
     q: `'${DRIVE_FOLDER_ID}' in parents and name='${fileName}' and trashed=false`,
     fields: 'files(id)',
@@ -111,15 +118,13 @@ ${templateContent}`;
   };
 
   let fileId;
-  if ((listRes.data.files||[]).length) {
-    // update
+  if ((listRes.data.files || []).length) {
     const updateRes = await drive.files.update({
       fileId: listRes.data.files[0].id,
       media
     });
     fileId = updateRes.data.id;
   } else {
-    // create
     const createRes = await drive.files.create({
       resource: {
         name: fileName,
@@ -132,15 +137,34 @@ ${templateContent}`;
     fileId = createRes.data.id;
   }
 
+  // ✅ Write link to sheet row that matches the date (stillingsOpprettet)
+  const sheetName = 'Planlagt/usikker';
+  const cvLink = `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","CV")`;
+  const rowNumber = 4; 
+  
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${sheetName}!D${rowNumber}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[cvLink]]
+    }
+  });
+
+  // ✅ Success message
+  console.log(`✅ CV successfully created and uploaded for "${job.stillingstittel}" at "${job.firma}"`);
+
   return fileId;
 }
 
-// allow CLI invocation
+// CLI usage
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   generateCV()
-    .then(id => console.log(`RETURN_FILE_ID::${id}`))
+    .then(id => {
+      console.log(`RETURN_FILE_ID::${id}`);
+    })
     .catch(err => {
-      console.error('❌ Error in generateCV:', err);
+      console.error('❌ Error in generateCV:', err.message);
       process.exit(1);
     });
 }

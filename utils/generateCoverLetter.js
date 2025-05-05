@@ -13,12 +13,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // — load options.json so you can pull in any Drive/Sheets IDs if needed later —
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
-const options    = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '../options.json'), 'utf-8')
+const options    = JSON.parse(fs.readFileSync(path.join(__dirname, '../options.json'), 'utf-8')
 );
-
-// If you ever need the raw spreadsheet ID, you can do:
-// const SPREADSHEET_ID = extractGoogleId(options.spreadsheet);
 
 export async function generateCoverLetter(job, documentId) {
   const { llmSettings = {} } = job;
