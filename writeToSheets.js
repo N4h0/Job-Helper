@@ -149,6 +149,8 @@ app.post('/submit-job', async (req, res) => {
         generatedDocId: documentId,
       };
       const jsonName = `${safe}_${stamp}.json`;
+      const tempPath = path.resolve(`./temp-${Date.now()}.json`);
+      fs.writeFileSync(tempPath, JSON.stringify(jsonOut, null, 2), 'utf-8');
 
       await drive.files.create({
         resource: {
@@ -158,10 +160,13 @@ app.post('/submit-job', async (req, res) => {
         },
         media: {
           mimeType: 'application/json',
-          body: Buffer.from(JSON.stringify(jsonOut, null, 2))
+          body: fs.createReadStream(tempPath)
         },
         fields: 'id'
       });
+
+      // optionally delete temp file
+      fs.unlinkSync(tempPath);
 
       // 3f) Append to your “Planlagt/usikker” sheet
       const frist = (!job.frist || ['NotFound', 'Ikke oppgitt'].includes(job.frist))
