@@ -178,12 +178,7 @@ app.post('/submit-job', async (req, res) => {
         `=HYPERLINK("${htmlUrl}",${JSON.stringify(frist)})`,
         job.pros, job.cons, job.notat, job.sendt, job.lagtInn,
         job.sektor, job.sted, job.bransje, job.stillingsfunksjon,
-        job.arbeidsspråk, job.nøkkelord, job.datoAvslag, job.stegVidere,
-        // now include your five extra fields in the sheet too:
-        oldContentFiles,
-        JobbutlysningerHTML,
-        Søknader,
-        CVer
+        job.arbeidsspråk, job.nøkkelord, job.datoAvslag, job.stegVidere
       ];
       // find next empty row
       const getColB = await sheets.spreadsheets.values.get({
@@ -247,26 +242,38 @@ app.post('/submit-job', async (req, res) => {
         }
       });
 
-      // 3h) Generate CV / Cover letter if requested
+      // 3h) Generate CV (and upload .tex) if requested
       const tasks = [];
       if (job.booleanCV) {
         tasks.push(
-          generateCV().then(fileId => {
-            job.cvFileId = fileId;
+          generateCV().then(({ pdfFileId, texFileId }) => {
+            // stash for later if you need it
+            job.cvFileId = pdfFileId;
+            job.texFileId = texFileId;
 
-            const cvLink = `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view", "${job.stillingOpprettet}")`;
+            // build the two HYPERLINK formulas
+            const cvLink = `=HYPERLINK("https://drive.google.com/file/d/${pdfFileId}/view","${job.stillingOpprettet}")`;
+            const contentLink = `=HYPERLINK("https://drive.google.com/file/d/${texFileId}/view","content.tex")`;
 
-            return sheets.spreadsheets.values.update({
-              spreadsheetId: SPREADSHEET_ID,
-              range: `Planlagt/usikker!D${nextRow}`, // you had firstEmptyRow, but you're using nextRow earlier
-              valueInputOption: 'USER_ENTERED',
-              requestBody: {
-                values: [[cvLink]]
-              }
-            }).then(() => {
-              console.log(`📎 CV link added to cell D${nextRow}`);
+            // write both links into D and J of the same row
+            return Promise.all([
+              sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `Planlagt/usikker!D${nextRow}`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: { values: [[cvLink]] }
+              }),
+              sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `Planlagt/usikker!J${nextRow}`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: { values: [[contentLink]] }
+              })
+            ]).then(() => {
+              console.log(`📎 CV link added to D${nextRow} and content link added to J${nextRow}`);
             });
-          }).catch(err => console.error('❌ CV generation failed:', err.message))
+          })
+            .catch(err => console.error('❌ CV generation failed:', err.message))
         );
       }
 

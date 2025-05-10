@@ -27,6 +27,7 @@ options.json
 googleDrive.json
 debug-latest-job.json
 content.tex
+temp.txt
 
 # System / OS
 *.DS_Store
