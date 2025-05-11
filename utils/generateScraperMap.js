@@ -4,10 +4,10 @@ import fs from 'fs';
 import path from 'path';
 
 // Folder where your scraper files are
-const scrapersDir = './scrapers';
+const scrapersDir = '../scrapers';
 
 // Output file
-const outputFile = './scraperMap.js';
+const outputFile = '../scraperMap.js';
 
 // List all .js files in scrapers/
 const scraperFiles = fs.readdirSync(scrapersDir).filter(file => file.endsWith('.js'));
@@ -18,7 +18,7 @@ let mappings = '';
 
 scraperFiles.forEach(file => {
   const scraperName = path.basename(file, '.js'); // eg. 'finn'
-  imports += `import * as ${scraperName} from './scrapers/${file}';\n`;
+  imports += `import * as ${scraperName} from '../scrapers/${file}';\n`;
   mappings += `  '${scraperName}.no': ${scraperName}.runFinnScraper,\n`; 
   // ⬆️ assumes all scrapers export `runFinnScraper`
 });
