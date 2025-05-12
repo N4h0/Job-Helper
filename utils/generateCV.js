@@ -85,6 +85,13 @@ ${templateContent}`;
 
   // Write out the content.tex file
   const latexOnly = match[0];
+  const nonLatexParts = tailoredCV.replace(latexOnly, '').trim();
+
+  if (nonLatexParts.length > 0) {
+    console.log('\n🟡 NON-LATEX CONTENT FOUND:\n');
+    console.log(nonLatexParts);
+  }
+
   const contentTexPath = path.resolve(`${CV_FOLDER}/content.tex`);
   fs.writeFileSync(contentTexPath, latexOnly, 'utf-8');
 
