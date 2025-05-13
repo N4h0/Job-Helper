@@ -253,25 +253,33 @@ app.post('/submit-job', async (req, res) => {
 
             // build the two HYPERLINK formulas
             const cvLink = `=HYPERLINK("https://drive.google.com/file/d/${pdfFileId}/view","${job.stillingOpprettet}")`;
-            const contentLink = `=HYPERLINK("https://drive.google.com/file/d/${texFileId}/view","content.tex")`;
+            const contentLink =`=HYPERLINK("https://drive.google.com/file/d/${texFileId}/view","${job.lagtInn}")`;
 
-            // write both links into D and J of the same row
-            return Promise.all([
-              sheets.spreadsheets.values.update({
+            return sheets.spreadsheets.values
+              .get({
                 spreadsheetId: SPREADSHEET_ID,
-                range: `Planlagt/usikker!D${nextRow}`,
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[cvLink]] }
-              }),
-              sheets.spreadsheets.values.update({
-                spreadsheetId: SPREADSHEET_ID,
-                range: `Planlagt/usikker!J${nextRow}`,
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[contentLink]] }
+                range: `Planlagt/usikker!J${nextRow}`
               })
-            ]).then(() => {
-              console.log(`📎 CV link added to D${nextRow} and content link added to J${nextRow}`);
-            });
+              .then(getJ => {
+                // update D and J in parallel
+                return Promise.all([
+                  sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `Planlagt/usikker!D${nextRow}`,
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: { values: [[cvLink]] }
+                  }),
+                  sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `Planlagt/usikker!J${nextRow}`,
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: { values: [[contentLink]] }
+                  })
+                ])
+              })
+              .then(() => {
+                console.log(`📎 CV link in D${nextRow}, combined link+timestamp in J${nextRow}`)
+              });
           })
             .catch(err => console.error('❌ CV generation failed:', err.message))
         );

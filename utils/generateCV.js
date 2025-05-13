@@ -8,6 +8,7 @@ import { OpenAI } from 'openai';
 import { google } from 'googleapis';
 import { extractGoogleId } from './helperFunctions.js';
 
+
 dotenv.config({ path: './credentials/.env' });
 const execAsync = promisify(exec);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -77,7 +78,7 @@ ${templateContent}`;
   });
 
   const tailoredCV = chat.choices[0].message.content;
-  const match = tailoredCV.match(/\\begin\{greenbox}[\s\S]*?\\vspace\{2pt\}/);
+  const match = tailoredCV.match(/\\begin\{greenbox}[\s\S]*\\vspace\{2pt\}/);
   if (!match) {
     fs.writeFileSync('./temp.txt', tailoredCV);
     throw new Error('No LaTeX block found in LLM response. Raw output saved to temp.txt');
@@ -96,8 +97,8 @@ ${templateContent}`;
   fs.writeFileSync(contentTexPath, latexOnly, 'utf-8');
 
   // Compile to PDF
-  await execAsync('latexmk -pdf cv.tex', { cwd: CV_FOLDER });
-  const pdfPath = path.resolve(CV_FOLDER, 'cv.pdf');
+  const buildScript = path.resolve(__dirname, '../LatexCV/buildPdf.js');
+  await execAsync(`node ${buildScript}`, { cwd: CV_FOLDER });
 
   // Build Drive-safe filenames
   const now = new Date();
@@ -123,6 +124,7 @@ ${templateContent}`;
   const texFileId = texRes.data.id;
 
   // 2) Upload or update the PDF
+  const pdfPath = path.resolve(__dirname, '../LatexCV/cv.pdf');
   const listRes = await drive.files.list({
     q: `'${DRIVE_FOLDER_ID}' in parents and name='${pdfFileName}' and trashed=false`,
     fields: 'files(id)', spaces: 'drive'
@@ -149,6 +151,5 @@ ${templateContent}`;
 // CLI entry
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   generateCV()
-    .then(ids => console.log(`RETURN_PDF_ID::${ids.pdfFileId}`, `RETURN_TEX_ID::${ids.texFileId}`))
     .catch(err => { console.error('❌ Error in generateCV:', err.message); process.exit(1); });
 }
