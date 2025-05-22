@@ -20,7 +20,7 @@ const contentFolderId = extractGoogleId(options.oldContentFiles);
 const spreadsheetId = extractGoogleId(options.spreadsheet);
 const sheetName = 'Planlagt/usikker';
 
-async function replaceManuallyEditedCV() {
+async function replaceCV() {
   const job = JSON.parse(fs.readFileSync(jobPath, 'utf-8'));
 
   // --- Build base filename: FIRM_POSITION_MM_YYYY
@@ -138,10 +138,12 @@ async function replaceManuallyEditedCV() {
 
 // CLI entry
 if (process.argv[1] === __filename) {
-  replaceManuallyEditedCV()
+  replaceCV()
     .then(id => console.log(`✅ Done. File ID: ${id}`))
     .catch(err => {
       console.error('❌ Failed to replace CV:', err.message);
       process.exit(1);
     });
 }
+
+export { replaceCV };

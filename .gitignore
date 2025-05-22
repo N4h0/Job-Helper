@@ -28,6 +28,7 @@ googleDrive.json
 debug-latest-job.json
 content.tex
 temp.txt
+builderrors.txt
 
 # System / OS
 *.DS_Store

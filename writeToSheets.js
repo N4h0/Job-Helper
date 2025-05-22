@@ -6,9 +6,10 @@ import { google } from 'googleapis';
 import { generateCoverLetter } from './utils/generateCoverLetter.js';
 import { generateCV } from './utils/generateCV.js';
 import { extractGoogleId } from './utils/helperFunctions.js';
+import { replaceCV } from './LatexCV/replaceCV.js';
+import { writeBlankCoverLetter } from './utils/writeBlankCoverLetter.js';
 import fs from 'fs';
 import path from 'path';
-
 
 const app = express();
 const port = 3000;
@@ -48,6 +49,7 @@ app.use(cors());
 
 app.post('/submit-job', async (req, res) => {
   try {
+    // 1?) Maybe add in code to run ReplaceCV - make sure the CV for the last job is up to date, is easy to forget.
     // 2) Determine which jobs to process
     let jobs = [];
     if (req.body && Object.keys(req.body).length > 0) {
@@ -197,7 +199,7 @@ app.post('/submit-job', async (req, res) => {
       // 3g) Write out the job JSON to a file for debugging and usage laterz
       fs.writeFileSync('debug-latest-job.json', JSON.stringify(job, null, 2), 'utf-8');
 
-      // 3g) Styling/borders omitted for brevity…
+      // 3g) Styling/borders
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId: SPREADSHEET_ID,
         requestBody: {
@@ -253,7 +255,7 @@ app.post('/submit-job', async (req, res) => {
 
             // build the two HYPERLINK formulas
             const cvLink = `=HYPERLINK("https://drive.google.com/file/d/${pdfFileId}/view","${job.stillingOpprettet}")`;
-            const contentLink =`=HYPERLINK("https://drive.google.com/file/d/${texFileId}/view","${job.lagtInn}")`;
+            const contentLink = `=HYPERLINK("https://drive.google.com/file/d/${texFileId}/view","${job.lagtInn}")`;
 
             return sheets.spreadsheets.values
               .get({
@@ -283,11 +285,31 @@ app.post('/submit-job', async (req, res) => {
           })
             .catch(err => console.error('❌ CV generation failed:', err.message))
         );
+      } else { // If no CV is requested, we simply use a default CV. TODO. Prolly add an option for no CV whatsoever.
+        // Replace the current content.tex with one of the default ones
+        const language = job.llmSettings?.språk;
+        const templateTxt = job.llmSettings?.cvFile;
+        const template = templateTxt?.replace(/\.txt$/, '.tex');
+
+        if (!language || !template) {
+          throw new Error(`❌ Missing språk or cvFile in job.llmSettings`);
+        }
+
+        fs.writeFileSync(
+          './LatexCV/content.tex',
+          fs.readFileSync(`./LatexCV/contentTemplates/${language}/${template}`, 'utf-8'),
+          'utf-8'
+        );
+
+        replaceCV();
       }
 
 
       if (job.booleanGenerateCoverLetter) {
         tasks.push(generateCoverLetter(job, documentId));
+      } else {
+        // If no cover letter is requested, we simply use a blank one. TODO: Prolly add an option for no cover letter whatsoever.
+        tasks.push(writeBlankCoverLetter(documentId));
       }
       await Promise.all(tasks);
 
