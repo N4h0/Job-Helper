@@ -114,22 +114,23 @@ export function runFinnScraper() {
   // Get the current page URL
   const url = window.location.href;
 
-  // Stillingsbeskrivelse
+  // Stillingsbeskrivelse (updated selector)
   let jobDescription = '';
-  const jobSection = document.querySelector('section > h1.t3')?.parentElement;
-  if (jobSection) {
-    jobDescription = jobSection.innerText
+  const jobDescDiv = document.querySelector('div.import-decoration');
+  if (jobDescDiv) {
+    jobDescription = jobDescDiv.innerText
       .replace(/\s+/g, ' ')
       .trim();
   }
 
+
   // Beskrivelse av firma
   let companyDescription = '';
-  const companySection = document.querySelector('section.my-16');
-  if (companySection) {
-    const intro = companySection.querySelector('div.import-decoration em');
-    const cleanedIntro = intro ? intro.textContent.trim() : '';
-    companyDescription = cleanedIntro;
+  const companyDescDivs = document.querySelectorAll('div.import-decoration');
+  if (companyDescDivs.length > 1) {
+    companyDescription = companyDescDivs[1].innerText
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   // ✅ Build final job object
